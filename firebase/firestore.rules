@@ -1,0 +1,74 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // ── Evidence Plane ────────────────────────────────────────
+    // Inspectors can read/create their own records.
+    // Evidence is append-only: no updates, no deletes after creation.
+
+    match /incidents/{incidentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // Status updates only — enforce field restrictions via Cloud Function
+      allow delete: if false;             // Incidents are never deleted
+    }
+
+    match /inspections/{inspectionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isOwner(resource.data.inspectorId);
+      allow delete: if false;
+    }
+
+    match /evidenceItems/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;  // Evidence is immutable after creation
+      allow delete: if false;
+    }
+
+    // ── Intelligence Plane ────────────────────────────────────
+    // AI outputs can be created but not mutated by clients.
+    // Updates only via Cloud Functions (server-side).
+
+    match /intelligence/{recordId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;  // Only Cloud Functions may update intelligence records
+      allow delete: if false;
+    }
+
+    // ── Governance Plane ──────────────────────────────────────
+    // Governance events are immutable and append-only.
+
+    match /governanceEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;  // Governance events are immutable
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // Engineers update status/review fields
+      allow delete: if false;
+    }
+
+    // ── Deny everything else ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

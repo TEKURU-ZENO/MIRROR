@@ -1,0 +1,17 @@
+{
+  "name": "mirror",
+  "private": true,
+  "version": "0.0.1",
+  "description": "MIRROR — Hybrid Field Intelligence & Incident Assessment Platform",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter mirror-web dev",
+    "build": "pnpm --filter mirror-web build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

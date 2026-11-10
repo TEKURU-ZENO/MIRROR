@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-mirror-border;
+  }
+
+  html {
+    @apply bg-mirror-bg text-mirror-text;
+    color-scheme: dark;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-mirror-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-mirror-border rounded-full;
+  }
+}
+
+@layer components {
+  /* ── Intelligence Source Badge ── */
+  .badge-local {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+           bg-mirror-intel-local/15 text-mirror-intel-local border border-mirror-intel-local/30;
+  }
+  .badge-cloud {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+           bg-mirror-intel-cloud/15 text-mirror-intel-cloud border border-mirror-intel-cloud/30;
+  }
+  .badge-human {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+           bg-mirror-success/15 text-mirror-success border border-mirror-success/30;
+  }
+
+  /* ── Confidence Bar ── */
+  .confidence-bar {
+    @apply h-1 rounded-full bg-mirror-border overflow-hidden;
+  }
+  .confidence-fill {
+    @apply h-full rounded-full transition-all duration-500;
+  }
+
+  /* ── Panel ── */
+  .panel {
+    @apply bg-mirror-surface border border-mirror-border rounded-lg;
+  }
+  .panel-header {
+    @apply px-4 py-3 border-b border-mirror-border flex items-center justify-between;
+  }
+
+  /* ── Sync status dot ── */
+  .sync-dot-synced    { @apply w-2 h-2 rounded-full bg-mirror-success; }
+  .sync-dot-pending   { @apply w-2 h-2 rounded-full bg-mirror-warning animate-pulse; }
+  .sync-dot-conflict  { @apply w-2 h-2 rounded-full bg-mirror-danger; }
+  .sync-dot-local     { @apply w-2 h-2 rounded-full bg-mirror-muted; }
+}

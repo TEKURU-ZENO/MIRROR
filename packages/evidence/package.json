@@ -1,0 +1,20 @@
+{
+  "name": "@mirror/evidence",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mirror/core": "workspace:*",
+    "@mirror/sync": "workspace:*",
+    "pdfjs-dist": "^4.9.155"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

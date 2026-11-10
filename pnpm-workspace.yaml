@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'firebase/functions'
+
+verifyDepsBeforeRun: false
+
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@napi-rs/canvas'
+  - esbuild
+  - protobufjs
