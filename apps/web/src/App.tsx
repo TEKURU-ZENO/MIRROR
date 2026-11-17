@@ -5,6 +5,7 @@ import { InspectionPage } from '@/pages/InspectionPage';
 import { EvidenceVaultPage } from '@/pages/EvidenceVaultPage';
 import { KnowledgeGraphPage } from '@/pages/KnowledgeGraphPage';
 import { SpikePage } from '@/pages/SpikePage';
+import { ReportPage } from '@/pages/ReportPage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/graph" element={<KnowledgeGraphPage />} />
         {/* Day 1: Firebase spike validation page — remove before production */}
         <Route path="/spike" element={<SpikePage />} />
+        <Route path="/report" element={<ReportPage />} />
       </Routes>
     </AppShell>
   );

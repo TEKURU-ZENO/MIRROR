@@ -8,8 +8,11 @@ import {
   FlaskConical,
   Wifi,
   WifiOff,
+  FileBarChart2,
 } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useSyncEngine } from '@/hooks/useSyncEngine';
+import { SyncBanner } from '@/components/ui/SyncBanner';
 import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
@@ -17,11 +20,13 @@ const NAV_ITEMS = [
   { to: '/inspection', label: 'Inspection',      icon: ClipboardList },
   { to: '/vault',      label: 'Evidence Vault',  icon: Archive },
   { to: '/graph',      label: 'Knowledge Graph', icon: Network },
+  { to: '/report',     label: 'Report',          icon: FileBarChart2 },
   { to: '/spike',      label: 'Spike (Dev)',      icon: FlaskConical },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const isOnline = useOnlineStatus();
+  const { syncState } = useSyncEngine();
 
   return (
     <div className="flex h-screen overflow-hidden bg-mirror-bg">
@@ -83,6 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             Working offline — evidence is saved locally and will sync when connectivity returns.
           </div>
         )}
+        <SyncBanner syncState={syncState} />
         <div className="p-6">{children}</div>
       </main>
     </div>

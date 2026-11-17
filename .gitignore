@@ -8,6 +8,7 @@ node_modules/
 dist/
 build/
 .vite/
+*.tsbuildinfo
 
 # Environment files — NEVER commit these
 .env.local
