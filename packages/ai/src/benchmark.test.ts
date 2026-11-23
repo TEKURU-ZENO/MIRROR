@@ -22,5 +22,13 @@ describe('Infrastructure Intelligence Benchmark & Evaluation Harness', () => {
       expect(scenario.metrics.citationIntegrityScore).toBe(1.0);
       expect(scenario.metrics.durationMs).toBeGreaterThanOrEqual(0);
     }
+
+    // Verify task-accuracy metrics on labeled ground truth dataset
+    expect(result.damageAssessmentReport).toBeDefined();
+    expect(result.damageAssessmentReport.totalCases).toBe(10);
+    expect(result.damageAssessmentReport.defectClassificationAccuracy).toBeGreaterThanOrEqual(0.90);
+    expect(result.damageAssessmentReport.severityClassificationAccuracy).toBeGreaterThanOrEqual(0.90);
+    expect(result.damageAssessmentReport.criticalUnderTriageRate).toBe(0.0);
+    expect(result.damageAssessmentReport.actionConcordance).toBeGreaterThanOrEqual(0.90);
   });
 });

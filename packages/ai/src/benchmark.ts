@@ -8,6 +8,10 @@ import { extractEntitiesFromInspection } from './extraction.js';
 import { validateEvidenceCitations } from './citationValidator.js';
 import { prioritizeInspectionSites } from './prioritization.js';
 import { detectConflicts } from './gemini.js';
+import {
+  evaluateDamageAssessmentSuite,
+  type DamageAssessmentEvaluationReport,
+} from './damageAssessmentEval.js';
 
 export interface BenchmarkScenario {
   id: string;
@@ -43,6 +47,7 @@ export interface BenchmarkSuiteResult {
   passedScenarios: number;
   compositeScore: number; // 0 - 100
   scenarios: ScenarioEvaluation[];
+  damageAssessmentReport: DamageAssessmentEvaluationReport;
   summary: string;
 }
 
@@ -286,12 +291,16 @@ export async function runBenchmarkSuite(
   const passedCount = evaluations.filter((e) => e.passed).length;
   const compositeScore = Math.round((passedCount / evaluations.length) * 100);
 
+  // Evaluate task-accuracy on ground-truth labeled incident dataset
+  const damageAssessmentReport = evaluateDamageAssessmentSuite();
+
   return {
     executedAt: new Date().toISOString(),
     totalScenarios: evaluations.length,
     passedScenarios: passedCount,
     compositeScore,
     scenarios: evaluations,
-    summary: `MIRROR Benchmark Suite completed: ${passedCount}/${evaluations.length} scenarios satisfied ground truth criteria (${compositeScore}% accuracy).`,
+    damageAssessmentReport,
+    summary: `MIRROR Benchmark Suite completed: ${passedCount}/${evaluations.length} scenarios satisfied ground truth criteria (${compositeScore}% accuracy). Damage Assessment: Defect ${(damageAssessmentReport.defectClassificationAccuracy * 100).toFixed(0)}%, Severity ${(damageAssessmentReport.severityClassificationAccuracy * 100).toFixed(0)}%, Under-Triage ${(damageAssessmentReport.criticalUnderTriageRate * 100).toFixed(0)}%.`,
   };
 }

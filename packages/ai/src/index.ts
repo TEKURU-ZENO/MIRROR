@@ -85,3 +85,24 @@ export type {
   ScenarioEvaluation,
   BenchmarkSuiteResult,
 } from './benchmark.js';
+
+export {
+  assessDamageFromNotes,
+  extractQuantitativeReadings,
+} from './damageAssessment.js';
+export type {
+  DamageAssessmentInput,
+  AssessedDamageResult,
+  QuantitativeReading,
+} from './damageAssessment.js';
+
+export {
+  evaluateDamageAssessmentSuite,
+  getGroundTruthIncidentDataset,
+} from './damageAssessmentEval.js';
+export type {
+  LabeledIncidentCase,
+  CaseEvaluationResult,
+  DamageAssessmentEvaluationReport,
+  ExpectedMeasurement,
+} from './damageAssessmentEval.js';
