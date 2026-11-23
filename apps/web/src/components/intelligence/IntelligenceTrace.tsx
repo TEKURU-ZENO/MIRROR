@@ -12,6 +12,7 @@ interface IntelligenceTraceProps {
   confidence: number;
   modelVersion?: string;
   createdAt: string;
+  mode?: 'real' | 'mock' | 'demo';
   className?: string;
 }
 
@@ -36,13 +37,14 @@ export function IntelligenceTrace({
   confidence,
   modelVersion,
   createdAt,
+  mode,
   className,
 }: IntelligenceTraceProps) {
   const badgeClass =
     source === 'local-on-device' ? 'badge-local' :
     source === 'cloud-gemini'    ? 'badge-cloud' :
     source === 'human'           ? 'badge-human' :
-                                   'badge-local';
+    'badge-local';
 
   return (
     <div className={clsx('flex items-center gap-3 flex-wrap', className)}>
@@ -52,6 +54,19 @@ export function IntelligenceTrace({
         {source === 'human'           && '✓ '}
         {INFERENCE_SOURCE_LABELS[source] ?? source}
       </span>
+
+      {mode && (
+        <span
+          className={clsx(
+            'px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider font-semibold border',
+            mode === 'real'
+              ? 'bg-mirror-success/10 text-mirror-success border-mirror-success/30'
+              : 'bg-mirror-warning/10 text-mirror-warning border-mirror-warning/30'
+          )}
+        >
+          {mode === 'real' ? '● Live Inference' : '○ Simulated/Demo'}
+        </span>
+      )}
 
       <ConfidenceBar value={confidence} />
 

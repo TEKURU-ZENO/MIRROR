@@ -105,6 +105,30 @@ function parseJSONFromText<T>(raw: string): T | null {
   }
 }
 
+export function isFirebaseConfigured(): boolean {
+  return !!getFirebaseApiKey();
+}
+
+export async function generateCloudTextRaw(prompt: string): Promise<string | null> {
+  const app = await getFirebaseApp();
+  if (!app) return null;
+
+  try {
+    const aiModule = (await import(
+      /* @vite-ignore */ FIREBASE_AI_PKG
+    )) as unknown as FirebaseAIModule;
+    const ai = aiModule.getAI(app);
+    const model = aiModule.getGenerativeModel(ai, {
+      model: 'gemini-2.0-flash',
+    });
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  } catch (err) {
+    console.warn('[MIRROR AI] Cloud raw inference failed:', err);
+    return null;
+  }
+}
+
 async function generateJSON<T>(prompt: string): Promise<T | null> {
   const app = await getFirebaseApp();
   if (!app) return null;

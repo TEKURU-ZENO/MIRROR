@@ -10,59 +10,120 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // ── Evidence Plane ────────────────────────────────────────
+    function isEngineer() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'engineer' ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    function isInspector() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'inspector' ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    // Tenant / Organization isolation helper (ready for custom claims in Phase 3)
+    function belongsToOrg(orgId) {
+      return isAuthenticated() && (
+        !('organizationId' in request.auth.token) ||
+        request.auth.token.organizationId == orgId
+      );
+    }
+
+    // ── PLANE 1: Evidence ─────────────────────────────────────
     // Inspectors can read/create their own records.
-    // Evidence is append-only: no updates, no deletes after creation.
+    // Evidence is strictly append-only: no updates, no deletes after creation.
 
     match /incidents/{incidentId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // Status updates only — enforce field restrictions via Cloud Function
+      // Only status and updatedAt can be modified; title, description, and history remain immutable
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
       allow delete: if false;             // Incidents are never deleted
     }
 
     match /inspections/{inspectionId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && isOwner(resource.data.inspectorId);
+      allow create: if isAuthenticated() &&
+        request.resource.data.inspectorId == request.auth.uid &&
+        request.resource.data.keys().hasAll([
+          'id', 'incidentId', 'inspectorId', 'assetId', 'assetType', 'capturedAt', 'ingestedAt', 'syncStatus'
+        ]);
+      allow update: if isAuthenticated() &&
+        isOwner(resource.data.inspectorId) &&
+        request.resource.data.inspectorId == resource.data.inspectorId &&
+        request.resource.data.id == resource.data.id;
       allow delete: if false;
     }
 
     match /evidenceItems/{itemId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'id', 'inspectionId', 'type', 'checksum', 'capturedAt', 'ingestedAt', 'storageRef'
+        ]);
       allow update: if false;  // Evidence is immutable after creation
       allow delete: if false;
     }
 
-    // ── Intelligence Plane ────────────────────────────────────
-    // AI outputs can be created but not mutated by clients.
-    // Updates only via Cloud Functions (server-side).
-
-    match /intelligence/{recordId} {
+    match /measurements/{measurementId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if false;  // Only Cloud Functions may update intelligence records
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'id', 'inspectionId', 'label', 'value', 'unit', 'capturedAt'
+        ]);
+      allow update: if false;  // Measurements are immutable
       allow delete: if false;
     }
 
-    // ── Governance Plane ──────────────────────────────────────
-    // Governance events are immutable and append-only.
+    // ── PLANE 2: Intelligence ─────────────────────────────────
+    // AI outputs can be created with source tagging, but cannot be mutated by clients.
+    // Client-side modifications are forbidden.
+
+    match /intelligence/{recordId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'id', 'inspectionId', 'createdAt', 'inferenceSource', 'confidence', 'content'
+        ]);
+      allow update: if false;  // Intelligence records are never mutated in-place
+      allow delete: if false;
+    }
+
+    // ── PLANE 3: Governance ───────────────────────────────────
+    // Governance events and provenance are strictly immutable and append-only.
 
     match /governanceEvents/{eventId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if false;  // Governance events are immutable
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'id', 'occurredAt', 'actorId', 'actorType', 'eventType', 'payload'
+        ]);
+      allow update: if false;  // Governance audit trail cannot be modified
+      allow delete: if false;
+    }
+
+    match /provenance/{evidenceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'evidenceId', 'checksum', 'capturedAt', 'capturedBy', 'ingestedAt'
+        ]);
+      allow update: if false;  // Cryptographic provenance is immutable
       allow delete: if false;
     }
 
     match /reports/{reportId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // Engineers update status/review fields
+      // Engineers can review, approve, or update sections
+      allow update: if isAuthenticated();
       allow delete: if false;
     }
 

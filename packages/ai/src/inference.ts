@@ -1,16 +1,21 @@
-// MIRROR — Firebase AI Logic wrapper
+// MIRROR — Hybrid AI Router
 // Provides a unified interface for local (on-device) and cloud (Gemini) inference.
-// Every response is tagged with its InferenceSource and a confidence estimate.
+// Every response is tagged with its InferenceSource, confidence estimate, execution duration,
+// and execution mode ('real' | 'mock' | 'demo') for total auditability.
 
 import type { InferenceSource } from '@mirror/core';
+import { generateCloudTextRaw, isFirebaseConfigured } from './gemini.js';
+
+export type InferenceMode = 'real' | 'mock' | 'demo';
 
 export interface AIResponse {
   text: string;
   inferenceSource: InferenceSource;
   modelVersion?: string;
-  /** Estimated confidence 0.0–1.0. Set by post-processing heuristics until Firebase exposes it natively. */
+  /** Estimated confidence 0.0–1.0. */
   confidence: number;
   durationMs: number;
+  mode: InferenceMode;
 }
 
 export interface AIRequestOptions {
@@ -20,38 +25,40 @@ export interface AIRequestOptions {
   localOnly?: boolean;
   /** Additional system context prepended to the prompt */
   systemContext?: string;
+  /** Allow fallback to deterministic demo response if all AI channels fail. Default: true. */
+  allowFallback?: boolean;
 }
 
-/**
- * SPIKE VALIDATION TARGET
- *
- * This module is intentionally thin until the Day 1 spike confirms:
- * 1. Firebase AI Logic web on-device is available on the target Chrome version.
- * 2. The SDK exposes inference-source metadata.
- *
- * Until validated, this module uses a stub that always routes to cloud
- * and manually tags inference source.
- */
-
 let _onDeviceAvailable: boolean | null = null;
+
+/** Test helper to simulate on-device environment state */
+export function _setForceOnDeviceAvailability(available: boolean | null): void {
+  _onDeviceAvailable = available;
+}
 
 /** Check if on-device inference is available in this browser/runtime. */
 export async function checkOnDeviceAvailability(): Promise<boolean> {
   if (_onDeviceAvailable !== null) return _onDeviceAvailable;
 
   try {
-    // TODO (Spike T-01): Replace with actual Firebase AI Logic on-device availability check
-    // e.g. const { onDeviceModel } = await import('firebase/ai');
-    // const session = await onDeviceModel.createTextSession();
-    // _onDeviceAvailable = session !== null;
-
-    // Stub: check for Chrome AI API (Prompt API) as a proxy indicator
     const hasBuiltInAI =
-      'ai' in globalThis && 'languageModel' in (globalThis as { ai?: { languageModel?: unknown } }).ai!;
+      typeof globalThis !== 'undefined' &&
+      'ai' in globalThis &&
+      'languageModel' in ((globalThis as unknown as { ai?: { languageModel?: { capabilities?: () => Promise<{ available: string }> } } }).ai || {});
 
-    _onDeviceAvailable = hasBuiltInAI;
-    console.info(`[MIRROR AI] On-device availability: ${_onDeviceAvailable}`);
-    return _onDeviceAvailable;
+    if (hasBuiltInAI) {
+      const aiObj = (globalThis as unknown as { ai: { languageModel: { capabilities?: () => Promise<{ available: string }> } } }).ai;
+      if (typeof aiObj.languageModel.capabilities === 'function') {
+        const caps = await aiObj.languageModel.capabilities();
+        _onDeviceAvailable = caps.available === 'readily' || caps.available === 'after-download';
+        return _onDeviceAvailable;
+      }
+      _onDeviceAvailable = true;
+      return true;
+    }
+
+    _onDeviceAvailable = false;
+    return false;
   } catch {
     _onDeviceAvailable = false;
     return false;
@@ -66,13 +73,25 @@ export async function generateText(
   prompt: string,
   options: AIRequestOptions = {}
 ): Promise<AIResponse | null> {
-  const { preferLocal = true, localOnly = false } = options;
+  const {
+    preferLocal = true,
+    localOnly = false,
+    systemContext,
+    allowFallback = true,
+  } = options;
+
+  const fullPrompt = systemContext ? `${systemContext}\n\n${prompt}` : prompt;
   const start = performance.now();
 
   const localAvailable = await checkOnDeviceAvailability();
 
   if (preferLocal && localAvailable) {
-    return generateLocalText(prompt, start);
+    try {
+      return await generateLocalText(fullPrompt, start);
+    } catch (err) {
+      console.warn('[MIRROR AI] Local inference failed, evaluating fallback:', err);
+      if (localOnly) return null;
+    }
   }
 
   if (localOnly) {
@@ -80,25 +99,94 @@ export async function generateText(
     return null;
   }
 
-  return generateCloudText(prompt, start);
+  return generateCloudText(fullPrompt, start, allowFallback);
 }
 
-/** On-device inference path */
-async function generateLocalText(_prompt: string, _start: number): Promise<AIResponse> {
-  // TODO (Spike T-01, T-05): Implement via Firebase AI Logic on-device SDK
-  // Placeholder until spike confirms the API surface.
-  throw new Error(
-    '[MIRROR AI] On-device inference not yet implemented. Run the Day 1 spike first.'
-  );
+/** On-device inference path using Chrome Built-in Prompt API */
+export async function generateLocalText(prompt: string, start: number): Promise<AIResponse> {
+  const aiObj = (globalThis as unknown as {
+    ai?: {
+      languageModel?: {
+        create: () => Promise<{
+          prompt: (text: string) => Promise<string>;
+          destroy?: () => void;
+        }>;
+      };
+    };
+  }).ai;
+
+  if (!aiObj?.languageModel?.create) {
+    throw new Error(
+      '[MIRROR AI] Chrome Prompt API not available in current execution context.'
+    );
+  }
+
+  const session = await aiObj.languageModel.create();
+  try {
+    const text = await session.prompt(prompt);
+    const durationMs = Math.round(performance.now() - start);
+
+    return {
+      text,
+      inferenceSource: 'local-on-device',
+      modelVersion: 'chrome-builtin-gemini-nano',
+      confidence: 0.88,
+      durationMs,
+      mode: 'real',
+    };
+  } finally {
+    if (session.destroy) {
+      session.destroy();
+    }
+  }
 }
 
-/** Cloud inference path via Gemini through Firebase AI Logic */
-async function generateCloudText(_prompt: string, _start: number): Promise<AIResponse> {
-  // TODO: Import and initialize Firebase AI Logic cloud SDK
-  // const { getGenerativeModel } = await import('firebase/ai');
-  // const model = getGenerativeModel(app, { model: 'gemini-2.0-flash' });
-  // const result = await model.generateContent(prompt);
-  throw new Error(
-    '[MIRROR AI] Cloud inference not yet implemented. Configure Firebase project first.'
-  );
+/** Cloud inference path via Gemini with explicit mode tracking */
+export async function generateCloudText(
+  prompt: string,
+  start: number,
+  allowFallback = true
+): Promise<AIResponse> {
+  if (isFirebaseConfigured()) {
+    const rawText = await generateCloudTextRaw(prompt);
+    if (rawText !== null) {
+      const durationMs = Math.round(performance.now() - start);
+      return {
+        text: rawText,
+        inferenceSource: 'cloud-gemini',
+        modelVersion: 'gemini-2.0-flash',
+        confidence: 0.95,
+        durationMs,
+        mode: 'real',
+      };
+    }
+  }
+
+  if (!allowFallback) {
+    throw new Error(
+      '[MIRROR AI] Cloud inference failed or Firebase not configured, and allowFallback is disabled.'
+    );
+  }
+
+  // Deterministic fallback (offline / demo mode)
+  return generateDeterministicText(prompt, start);
+}
+
+/** Deterministic analysis fallback */
+export function generateDeterministicText(prompt: string, start: number): AIResponse {
+  const durationMs = Math.round(performance.now() - start);
+  const isSummary = prompt.toLowerCase().includes('summar');
+
+  const text = isSummary
+    ? 'Automated deterministic field observation: Asset conditions surveyed. Physical structural baseline logged pending certified cloud evaluation.'
+    : 'Deterministic rule analysis: Field observations verified against local heuristic safety thresholds.';
+
+  return {
+    text,
+    inferenceSource: 'deterministic',
+    modelVersion: 'rule-engine-v1',
+    confidence: 0.70,
+    durationMs,
+    mode: 'demo',
+  };
 }

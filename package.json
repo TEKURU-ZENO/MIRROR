@@ -13,5 +13,10 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.1.1",
+    "fake-indexeddb": "^6.2.8",
+    "vitest": "^5.1.1"
   }
 }

@@ -99,18 +99,35 @@ export class SyncEngine {
           const data = await this.fetchEntityData(entry.entityType, entry.entityId);
 
           if (this.syncHandler) {
+            // Custom sync handler provided — use it
             if (data) {
               await this.syncHandler(collectionName, entry.entityId, data);
             }
+            // Handler succeeded — mark as truly synced
+            await db.syncQueue.update(entry.id, { status: 'done' });
+            await this.markEntitySynced(entry.entityType, entry.entityId);
+            synced++;
           } else if (this.firestore !== null) {
-            // When firestore instance is provided without custom handler
-            // Degrades gracefully or calls custom sync if configured
+            // Firestore instance provided without custom handler
+            // TODO: implement direct Firestore write path
+            // For now, this is a known gap — mark as simulated, NOT done
+            console.warn(
+              `[MIRROR Sync] Firestore instance provided but no sync handler configured. ` +
+              `Entry ${entry.id} marked as simulated.`
+            );
+            await db.syncQueue.update(entry.id, { status: 'simulated' });
+            skipped++;
+          } else {
+            // No Firestore, no handler — NEVER mark as 'done'
+            // This is demo/offline mode: mark as 'simulated' so the UI
+            // can clearly distinguish it from a real cloud sync
+            console.info(
+              `[MIRROR Sync] No cloud backend configured. ` +
+              `Entry ${entry.id} marked as simulated (not synced).`
+            );
+            await db.syncQueue.update(entry.id, { status: 'simulated' });
+            skipped++;
           }
-          // If firestore is null: mark as 'done' (simulated sync for demo / offline mode)
-
-          await db.syncQueue.update(entry.id, { status: 'done' });
-          await this.markEntitySynced(entry.entityType, entry.entityId);
-          synced++;
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : String(err);
           await db.syncQueue.update(entry.id, {
@@ -128,13 +145,19 @@ export class SyncEngine {
     return { synced, failed, skipped };
   }
 
-  async getQueueStatus(): Promise<{ pending: number; failed: number; done: number }> {
-    const [pending, failed, done] = await Promise.all([
+  async getQueueStatus(): Promise<{
+    pending: number;
+    failed: number;
+    done: number;
+    simulated: number;
+  }> {
+    const [pending, failed, done, simulated] = await Promise.all([
       db.syncQueue.where('status').equals('pending').count(),
       db.syncQueue.where('status').equals('failed').count(),
       db.syncQueue.where('status').equals('done').count(),
+      db.syncQueue.where('status').equals('simulated').count(),
     ]);
-    return { pending, failed, done };
+    return { pending, failed, done, simulated };
   }
 
   // ── Private helpers ──────────────────────────────────────────
