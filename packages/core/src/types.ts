@@ -45,6 +45,7 @@ export interface InspectionRecord {
   coordinates?: { lat: number; lng: number };
   capturedAt: ISOTimestamp;
   ingestedAt: ISOTimestamp;
+  updatedAt?: ISOTimestamp;
   syncStatus: SyncStatus;
   evidence: EvidenceItem[];
 }

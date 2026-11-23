@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { syncEngine } from '@mirror/sync';
+import { syncEngine, getDeadLetterQueue, processDeadLetters } from '@mirror/sync';
 
 export interface SyncState {
   pending: number;
   failed: number;
   done: number;
+  simulated: number;
+  deadLetter: number;
   lastSync?: string;
   isSyncing: boolean;
 }
@@ -21,16 +23,36 @@ export function useSyncEngine(): {
     pending: 0,
     failed: 0,
     done: 0,
+    simulated: 0,
+    deadLetter: 0,
     isSyncing: false,
   });
+
+  const refreshStatus = useCallback(async () => {
+    await processDeadLetters(4);
+    const [status, dlq] = await Promise.all([
+      syncEngine.getQueueStatus(),
+      getDeadLetterQueue(),
+    ]);
+    setSyncState((prev) => ({
+      ...prev,
+      ...status,
+      deadLetter: dlq.length,
+    }));
+  }, []);
 
   const triggerSync = useCallback(async (): Promise<void> => {
     setSyncState((prev) => ({ ...prev, isSyncing: true }));
     try {
       await syncEngine.processQueue();
-      const status = await syncEngine.getQueueStatus();
+      await processDeadLetters(4);
+      const [status, dlq] = await Promise.all([
+        syncEngine.getQueueStatus(),
+        getDeadLetterQueue(),
+      ]);
       setSyncState({
         ...status,
+        deadLetter: dlq.length,
         lastSync: new Date().toISOString(),
         isSyncing: false,
       });
@@ -44,12 +66,9 @@ export function useSyncEngine(): {
     if (isOnline) {
       void triggerSync();
     } else {
-      // Refresh status when offline so banner reflects current count
-      void syncEngine.getQueueStatus().then((status) => {
-        setSyncState((prev) => ({ ...prev, ...status }));
-      });
+      void refreshStatus();
     }
-  }, [isOnline, triggerSync]);
+  }, [isOnline, triggerSync, refreshStatus]);
 
   // Poll every 30 seconds when online
   useEffect(() => {

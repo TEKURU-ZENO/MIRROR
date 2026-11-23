@@ -64,7 +64,7 @@ export interface SyncQueueEntry {
   entityType: 'inspection' | 'evidence' | 'measurement' | 'intelligence' | 'governance';
   entityId: string;
   operation: 'create' | 'update' | 'delete';
-  status: 'pending' | 'in-flight' | 'done' | 'failed' | 'simulated';
+  status: 'pending' | 'in-flight' | 'done' | 'failed' | 'simulated' | 'dead-letter';
   retryCount: number;
   createdAt: string;
   lastAttemptAt?: string;
