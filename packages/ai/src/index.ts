@@ -75,3 +75,13 @@ export type {
   SystemicPattern,
   CrossInspectionCorrelationReport,
 } from './crossInspection.js';
+
+export {
+  runBenchmarkSuite,
+  getStandardBenchmarkScenarios,
+} from './benchmark.js';
+export type {
+  BenchmarkScenario,
+  ScenarioEvaluation,
+  BenchmarkSuiteResult,
+} from './benchmark.js';

@@ -9,6 +9,7 @@ import {
   Wifi,
   WifiOff,
   FileBarChart2,
+  Gauge,
 } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncEngine } from '@/hooks/useSyncEngine';
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/vault',      label: 'Evidence Vault',  icon: Archive },
   { to: '/graph',      label: 'Knowledge Graph', icon: Network },
   { to: '/report',     label: 'Report',          icon: FileBarChart2 },
+  { to: '/benchmark',  label: 'Benchmark',       icon: Gauge },
   { to: '/spike',      label: 'Spike (Dev)',      icon: FlaskConical },
 ];
 
