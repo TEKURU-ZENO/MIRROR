@@ -11,7 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@mirror/core": "workspace:*"
+    "@mirror/core": "workspace:*",
+    "@mirror/evidence": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

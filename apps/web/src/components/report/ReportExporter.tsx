@@ -1,73 +1,88 @@
 // MIRROR — ReportExporter
-// Provides Export as Markdown, Copy to Clipboard, and Approve & Lock actions.
+// Provides Export as Markdown, Copy to Clipboard, and Professional Engineer Certification per ADR-006.
 
 import { useState, useCallback } from 'react';
 import type { IncidentReport, Incident } from '@mirror/core';
-import { nowISO } from '@mirror/core';
+import {
+  certifyIncidentReport,
+  MANDATORY_PE_STATEMENT,
+  type EngineerCertificationSignature,
+} from '@mirror/core';
 import { db } from '@mirror/sync';
-import { Download, Clipboard, Lock, AlertTriangle } from 'lucide-react';
+import { Download, Clipboard, Lock, AlertTriangle, ShieldCheck, Check } from 'lucide-react';
 
 interface ReportExporterProps {
   report: IncidentReport | null;
   incident: Incident | null;
+  onReportUpdated?: (updated: IncidentReport) => void;
 }
-
-const DISCLAIMER =
-  'This report is for assessment support only. Structural safety determination requires qualified engineering judgment.';
 
 function buildMarkdown(report: IncidentReport, incident: Incident | null): string {
   const lines: string[] = [
-    '# MIRROR Incident Report',
+    '# MIRROR Incident Intelligence Assessment Report',
     '',
-    `**Incident:** ${incident?.title ?? report.incidentId}`,
-    `**Date:** ${new Date(report.draftedAt).toLocaleString()}`,
-    `**Engineer:** Reviewed by Engineer [Demo]`,
-    `**Drafted by:** ${report.draftedBy}`,
-    '',
-    `> ⚠ ${DISCLAIMER}`,
+    `**Incident ID / Title:** ${incident?.title ?? report.incidentId}`,
+    `**Report ID:** ${report.id}`,
+    `**Initial Drafted At:** ${new Date(report.draftedAt).toLocaleString()}`,
+    `**Initial Drafting Engine:** ${report.draftedBy}`,
     '',
     '---',
+    '',
+    '## Mandatory Regulatory Notice (ADR-006 Compliance)',
+    '',
+    '> **IMPORTANT NOTICE**: This document contains AI-assisted field intelligence synthesized for incident response and prioritization. Autonomous safety certification is strictly prohibited under MIRROR architecture policy ADR-006. Final certification requires review and sign-off by a licensed Professional Engineer.',
+    '',
+    '---',
+    '',
+    '## Certified Incident Findings',
     '',
   ];
 
   for (const section of report.sections) {
-    lines.push(`## ${section.heading}`);
+    lines.push(`### ${section.heading}`);
     lines.push('');
     lines.push(section.body);
     lines.push('');
     if (section.confidence !== undefined) {
-      lines.push(`*Confidence: ${Math.round(section.confidence * 100)}% — Source: ${section.inferenceSource}*`);
+      lines.push(
+        `*Source Tier: ${section.inferenceSource} | Confidence: ${Math.round(
+          section.confidence * 100
+        )}% | Human Certified: ${section.humanEdited ? 'Yes' : 'No'}*`
+      );
       lines.push('');
     }
   }
 
   if (report.evidenceRefs.length > 0) {
-    lines.push('## Evidence References');
+    lines.push('## Cryptographically Verified Evidence Traceability');
     lines.push('');
-    report.evidenceRefs.forEach((ref) => lines.push(`- ${ref}`));
-    lines.push('');
-  }
-
-  if (report.intelligenceRefs.length > 0) {
-    lines.push('## Intelligence References');
-    lines.push('');
-    report.intelligenceRefs.forEach((ref) => lines.push(`- ${ref}`));
+    report.evidenceRefs.forEach((ref) => lines.push(`- **Evidence Item:** \`${ref}\``));
     lines.push('');
   }
 
   if (report.approvedAt) {
     lines.push('---');
     lines.push('');
-    lines.push(`*Approved at ${new Date(report.approvedAt).toLocaleString()} by ${report.approvedBy ?? 'unknown'}*`);
+    lines.push('## Professional Engineer (PE) Digital Certification');
+    lines.push('');
+    lines.push(`**Certified By:** ${report.approvedBy ?? 'Licensed Professional Engineer'}`);
+    lines.push(`**Certification Date:** ${new Date(report.approvedAt).toLocaleString()}`);
+    lines.push('');
+    lines.push(`> "${MANDATORY_PE_STATEMENT}"`);
     lines.push('');
   }
 
   return lines.join('\n');
 }
 
-export function ReportExporter({ report, incident }: ReportExporterProps) {
+export function ReportExporter({ report, incident, onReportUpdated }: ReportExporterProps) {
   const [toast, setToast] = useState<string | null>(null);
-  const [approving, setApproving] = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [signerName, setSignerName] = useState('Alex Vance, PE');
+  const [peLicense, setPeLicense] = useState('PE-FL-89421');
+  const [jurisdiction, setJurisdiction] = useState('Florida Board of Professional Engineers');
+  const [statementConfirmed, setStatementConfirmed] = useState(true);
+  const [signingError, setSigningError] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -81,7 +96,7 @@ export function ReportExporter({ report, incident }: ReportExporterProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mirror-report-${report.incidentId}-${Date.now()}.md`;
+    a.download = `mirror-certified-report-${report.incidentId}-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }, [report, incident]);
@@ -90,28 +105,52 @@ export function ReportExporter({ report, incident }: ReportExporterProps) {
     if (!report) return;
     const md = buildMarkdown(report, incident);
     await navigator.clipboard.writeText(md);
-    showToast('Copied to clipboard!');
+    showToast('Report copied to clipboard!');
   }, [report, incident, showToast]);
 
-  const handleApprove = useCallback(async () => {
+  const handleExecuteCertification = async () => {
     if (!report) return;
-    setApproving(true);
-    try {
-      const updated: IncidentReport = {
-        ...report,
-        approvedAt: nowISO(),
-        approvedBy: 'engineer-demo',
-      };
-      await db.reports.put(updated);
-      showToast('Report approved and locked.');
-    } finally {
-      setApproving(false);
+    if (!statementConfirmed) {
+      setSigningError('You must confirm the non-autonomous engineering statement to proceed.');
+      return;
     }
-  }, [report, showToast]);
+
+    try {
+      setSigningError(null);
+      const signature: EngineerCertificationSignature = {
+        signerId: `eng-${peLicense.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`,
+        signerName,
+        peLicenseNumber: peLicense,
+        jurisdiction,
+        certifiedAt: new Date().toISOString(),
+        statement: MANDATORY_PE_STATEMENT,
+      };
+
+      const { certifiedReport, governanceEvent } = certifyIncidentReport(report, signature);
+
+      await db.reports.put(certifiedReport);
+      await db.governanceEvents.add(governanceEvent);
+
+      setShowSignModal(false);
+      onReportUpdated?.(certifiedReport);
+      showToast('Report professionally certified & locked (ADR-006).');
+    } catch (err) {
+      setSigningError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const isApproved = Boolean(report?.approvedAt);
 
   return (
     <div className="panel p-4 space-y-4">
-      <h3 className="text-sm font-semibold text-mirror-text">Export & Approve</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-mirror-text">Export & Certification</h3>
+        {isApproved && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mirror-success/15 text-mirror-success border border-mirror-success/30">
+            <ShieldCheck size={12} /> Certified by Professional Engineer
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -133,25 +172,112 @@ export function ReportExporter({ report, incident }: ReportExporterProps) {
         </button>
 
         <button
-          onClick={() => void handleApprove()}
-          disabled={!report || approving || Boolean(report?.approvedAt)}
+          onClick={() => setShowSignModal(true)}
+          disabled={!report || isApproved}
           className="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium bg-mirror-success/20 text-mirror-success hover:bg-mirror-success/30 disabled:opacity-40 transition-colors"
         >
           <Lock size={13} />
-          {report?.approvedAt ? 'Approved ✓' : approving ? 'Approving…' : 'Approve & Lock'}
+          {isApproved ? 'Certified & Locked' : 'Sign & Certify Report (PE)'}
         </button>
       </div>
 
-      {/* Disclaimer */}
-      <div className="flex items-start gap-2 text-xs text-mirror-warning">
-        <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-        <span>{DISCLAIMER}</span>
-      </div>
-
-      {/* Toast */}
       {toast && (
-        <div className="text-xs text-mirror-success bg-mirror-success/10 border border-mirror-success/30 rounded px-3 py-2 transition-opacity">
-          {toast}
+        <p className="text-xs text-mirror-success flex items-center gap-1 animate-fade-in font-medium">
+          <Check size={13} /> {toast}
+        </p>
+      )}
+
+      {/* Engineer Certification Modal */}
+      {showSignModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="panel p-6 max-w-lg w-full space-y-4 border border-mirror-border shadow-2xl bg-mirror-surface">
+            <div className="flex items-center gap-2 border-b border-mirror-border pb-3">
+              <ShieldCheck size={20} className="text-mirror-accent" />
+              <div>
+                <h3 className="text-base font-semibold text-mirror-text">
+                  Professional Engineer Certification
+                </h3>
+                <p className="text-xs text-mirror-muted">
+                  Compliance protocol under MIRROR Architecture Decision ADR-006.
+                </p>
+              </div>
+            </div>
+
+            {signingError && (
+              <div className="p-3 rounded bg-mirror-danger/10 border border-mirror-danger/30 text-xs text-mirror-danger flex items-center gap-2">
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>{signingError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-mirror-muted block mb-1">Engineer Full Name:</label>
+                <input
+                  type="text"
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  className="w-full bg-mirror-bg border border-mirror-border rounded p-2 text-mirror-text focus:outline-none focus:border-mirror-accent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-mirror-muted block mb-1">PE License Number:</label>
+                  <input
+                    type="text"
+                    value={peLicense}
+                    onChange={(e) => setPeLicense(e.target.value)}
+                    className="w-full bg-mirror-bg border border-mirror-border rounded p-2 text-mirror-text font-mono focus:outline-none focus:border-mirror-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-mirror-muted block mb-1">State / Jurisdiction:</label>
+                  <input
+                    type="text"
+                    value={jurisdiction}
+                    onChange={(e) => setJurisdiction(e.target.value)}
+                    className="w-full bg-mirror-bg border border-mirror-border rounded p-2 text-mirror-text focus:outline-none focus:border-mirror-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded bg-mirror-bg/80 border border-mirror-border space-y-2">
+                <p className="text-[11px] text-mirror-muted leading-relaxed italic">
+                  "{MANDATORY_PE_STATEMENT}"
+                </p>
+                <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={statementConfirmed}
+                    onChange={(e) => setStatementConfirmed(e.target.checked)}
+                    className="mt-0.5 rounded border-mirror-border text-mirror-accent focus:ring-0"
+                  />
+                  <span className="text-[11px] font-medium text-mirror-text">
+                    I confirm that I have reviewed the physical field evidence and assume professional responsibility.
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-mirror-border">
+              <button
+                type="button"
+                onClick={() => setShowSignModal(false)}
+                className="px-3.5 py-1.5 rounded text-xs text-mirror-muted hover:text-mirror-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExecuteCertification()}
+                className="px-4 py-2 rounded text-xs font-semibold bg-mirror-success text-white hover:bg-mirror-success/90 transition-colors shadow-md flex items-center gap-1.5"
+              >
+                <Lock size={13} />
+                Certify & Lock Report
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

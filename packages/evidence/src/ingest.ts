@@ -41,15 +41,7 @@ export async function ingestFile(
 
   // Determine evidence type
   const type = resolveEvidenceType(file.type);
-
-  // Store raw bytes in IndexedDB (as Blob for memory efficiency)
-  const blob = new Blob([arrayBuffer], { type: file.type });
   const storageRef = `local://evidence/${evidenceId}`;
-
-  // We store the blob separately via a Dexie blob store
-  // For now: store as base64 data URL for portability
-  // TODO: Use Dexie's binary storage once tested
-  const storageKey = `evidence-blob-${evidenceId}`;
 
   const evidenceItem: EvidenceItem = {
     id: evidenceId,

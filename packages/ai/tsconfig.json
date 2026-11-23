@@ -9,7 +9,8 @@
     "noEmit": true,
     "declaration": true,
     "paths": {
-      "@mirror/core": ["../core/src"]
+      "@mirror/core": ["../core/src"],
+      "@mirror/evidence": ["../evidence/src"]
     }
   },
   "include": ["src"]

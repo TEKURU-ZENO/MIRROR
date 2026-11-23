@@ -59,3 +59,19 @@ export type {
   DamageCascadeImpact,
   SpatialDamageCluster,
 } from './spatialGraph.js';
+
+export {
+  prioritizeInspectionSites,
+} from './prioritization.js';
+export type {
+  TriageActionRecommendation,
+  SiteTriageRecommendation,
+} from './prioritization.js';
+
+export {
+  correlateCrossInspectionEvidence,
+} from './crossInspection.js';
+export type {
+  SystemicPattern,
+  CrossInspectionCorrelationReport,
+} from './crossInspection.js';

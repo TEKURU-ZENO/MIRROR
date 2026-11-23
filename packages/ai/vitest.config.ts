@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@mirror/core': fileURLToPath(new URL('../core/src', import.meta.url)),
+      '@mirror/evidence': fileURLToPath(new URL('../evidence/src', import.meta.url)),
     },
   },
 });

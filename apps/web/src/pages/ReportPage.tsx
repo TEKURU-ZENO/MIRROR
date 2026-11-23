@@ -196,7 +196,7 @@ export function ReportPage() {
               <ReportEditor report={report} onSave={handleSaveReport} />
             </div>
             <div className="lg:col-span-1">
-              <ReportExporter report={report} incident={incident} />
+              <ReportExporter report={report} incident={incident} onReportUpdated={setReport} />
             </div>
           </div>
         </>
