@@ -49,3 +49,13 @@ export type {
   CitationIssue,
   CitationValidationReport,
 } from './citationValidator.js';
+
+export {
+  analyzeDamageCascades,
+  clusterSpatialDamage,
+} from './spatialGraph.js';
+export type {
+  AssetDamageState,
+  DamageCascadeImpact,
+  SpatialDamageCluster,
+} from './spatialGraph.js';

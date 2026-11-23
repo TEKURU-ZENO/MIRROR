@@ -21,7 +21,11 @@ export type AssetType =
   | 'transformer'
   | 'pole'
   | 'substation'
+  | 'feeder'
+  | 'switchgear'
+  | 'tower'
   | 'bridge'
+  | 'culvert'
   | 'road'
   | 'pipeline'
   | 'other';
