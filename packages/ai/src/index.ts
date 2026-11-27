@@ -13,6 +13,9 @@ export {
   detectConflicts,
   isFirebaseConfigured,
   generateCloudTextRaw,
+  generateCloudJSON,
+  callGeminiRestAPI,
+  getGeminiApiKey,
 } from './gemini.js';
 
 export {
@@ -87,8 +90,7 @@ export type {
 } from './benchmark.js';
 
 export {
-  assessDamageFromNotes,
-  extractQuantitativeReadings,
+  assessDamageWithGemini,
 } from './damageAssessment.js';
 export type {
   DamageAssessmentInput,
@@ -98,10 +100,10 @@ export type {
 
 export {
   evaluateDamageAssessmentSuite,
-  getGroundTruthIncidentDataset,
+  getHeldOutIncidentDataset,
 } from './damageAssessmentEval.js';
 export type {
-  LabeledIncidentCase,
+  RealHeldOutIncidentCase,
   CaseEvaluationResult,
   DamageAssessmentEvaluationReport,
   ExpectedMeasurement,

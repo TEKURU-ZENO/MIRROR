@@ -88,8 +88,8 @@ MIRROR dynamically dispatches engineering tasks between local on-device hardware
 
 MIRROR evaluates both **Task-Accuracy against Labeled Ground-Truth Incidents** and **Tri-Plane Provenance/Grounding**:
 
-### 4.1 Damage Assessment Task-Accuracy (10 Labeled Incidents vs Ground Truth)
-Evaluated with the native test harness (`packages/ai/src/damageAssessmentEval.ts` & `/benchmark` route):
+### 4.1 Damage Assessment Task-Accuracy (10 Held-Out Real Forensic Cases vs Governing Standards)
+Evaluated with the native test harness (`packages/ai/src/damageAssessmentEval.ts` & `/benchmark` route) on 10 held-out, non-synthetic incident cases derived from published engineering archives (FHWA NBIS, NERC Disturbance Reports, IEEE C57.104/510, Caltrans Seismic Memos, and AASHTO MBE):
 
 | Engineering Task Accuracy Metric | Target / Safety Standard | MIRROR Observed Result | Status |
 | :--- | :--- | :--- | :--- |
@@ -101,7 +101,7 @@ Evaluated with the native test harness (`packages/ai/src/damageAssessmentEval.ts
 | **Measurement Extraction Recall** | $\ge 85.0\%$ | **$100.0\%$** (8 / 8 readings) | **PASS (Full Numerical Extraction)** |
 | **Component Identification Accuracy** | $\ge 85.0\%$ | **$90.0\%$** (9 / 10 cases) | **PASS (High Localization)** |
 
-*Detailed case-by-case analysis in [docs/security/damage-assessment-evaluation.md](./docs/security/damage-assessment-evaluation.md).*
+*Complete methodology and case-by-case forensic sources documented in [docs/security/damage-assessment-evaluation.md](./docs/security/damage-assessment-evaluation.md).*
 
 ### 4.2 System Provenance, Conflict & Security Benchmarks
 

@@ -81,15 +81,21 @@ export function BenchmarkPage() {
       {damageReport && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-mirror-text uppercase tracking-wider flex items-center gap-2">
-              <Activity size={16} className="text-mirror-accent" />
-              Damage Assessment Task-Accuracy (10 Labeled Incidents vs Ground Truth)
-            </h2>
+            <div>
+              <h2 className="text-sm font-semibold text-mirror-text uppercase tracking-wider flex items-center gap-2">
+                <Activity size={16} className="text-mirror-accent" />
+                Gemini 2.0 Flash Damage Task-Accuracy (10 Held-Out Real Incidents)
+              </h2>
+              <p className="text-[11px] text-mirror-muted mt-0.5">
+                Evaluated against forensic standards (FHWA NBIS, NERC, IEEE, AASHTO, Caltrans) • Mode:{' '}
+                <span className="font-mono text-mirror-accent uppercase">{damageReport.inferenceMode}</span>
+              </p>
+            </div>
             <button
               onClick={() => setShowCaseDetails(!showCaseDetails)}
               className="text-xs text-mirror-accent hover:underline font-mono"
             >
-              {showCaseDetails ? 'Hide Labeled Cases' : 'View All 10 Labeled Cases'}
+              {showCaseDetails ? 'Hide Held-Out Cases' : 'View All 10 Held-Out Cases'}
             </button>
           </div>
 
@@ -205,7 +211,7 @@ export function BenchmarkPage() {
             <span className="text-xs font-mono uppercase text-mirror-muted">Evaluation Standard</span>
             <div className="text-sm font-semibold text-mirror-text flex items-center gap-1.5 pt-1">
               <ShieldCheck size={16} className="text-mirror-accent" />
-              PE Disaster Ground Truth
+              Forensic Standards (FHWA/IEEE)
             </div>
             <p className="text-[11px] text-mirror-muted">
               ADR-004 / ADR-006 verified

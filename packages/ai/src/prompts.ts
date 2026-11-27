@@ -115,3 +115,57 @@ Respond ONLY with a valid JSON array of conflict flags. Each flag must match thi
 If no conflicts are found, return an empty array: []
 Return ONLY the JSON array with no markdown, no code fences, no explanation.`;
 }
+
+export function buildDamageAssessmentPrompt(input: {
+  assetId: string;
+  assetType: string;
+  fieldNotes: string;
+  assetCriticality?: number;
+  locationLabel?: string;
+  mediaDescription?: string;
+}): string {
+  return `You are a licensed senior infrastructure forensic engineer assessing critical utility and civil infrastructure damage following an incident.
+
+ASSET UNDER ASSESSMENT:
+- Asset ID: ${input.assetId}
+- Asset Type: ${input.assetType}
+- Location: ${input.locationLabel || 'Utility Right-of-Way'}
+- Criticality Tier: ${input.assetCriticality ?? 3} / 5
+
+FIELD OBSERVATIONS & EVIDENCE:
+${input.fieldNotes}
+${input.mediaDescription ? `Media Observations: ${input.mediaDescription}` : ''}
+
+ENGINEERING TASK:
+Analyze the field notes and sensor/visual evidence. Identify the defect, severity tier, affected component, and recommended immediate action.
+
+TAXONOMY RESTRICTIONS:
+- primaryDefect must be exactly one of: "structural-crack" | "leaning-tilt" | "conductor-down" | "oil-leak" | "thermal-hotspot" | "corrosion-rust" | "vegetation-encroachment" | "washout-erosion" | "insulator-damage"
+- severity must be exactly one of: "minor" | "moderate" | "severe" | "critical"
+  * critical: Imminent collapse, active energized conductor on ground, active dielectric oil fire risk, flashover puncture.
+  * severe: Diagonal shear cracking (>3mm), severe thermal anomaly (Delta-T > 50°C), explosive gas near LEL, fatigue fracture in fracture-critical member.
+  * moderate: Measurable section loss, groundline rot, scour/washout not yet undermining footing, thermal movement within limits.
+  * minor: Superficial chipping (<5mm), hairline shrinkage crack (<0.3mm), cosmetic weathering without structural impact.
+- actionRecommendation must be exactly one of: "IMMEDIATE_DE_ENERGIZE" | "DISPATCH_EMERGENCY_CREW" | "SCHEDULED_REPAIR" | "MONITOR"
+
+Respond ONLY with a valid JSON object matching this exact schema:
+{
+  "primaryDefect": "<one of the allowed DefectType strings>",
+  "secondaryDefects": ["<other observed DefectType strings>"],
+  "severity": "<one of: minor | moderate | severe | critical>",
+  "affectedComponent": "<identified structural or electrical component>",
+  "actionRecommendation": "<one of the allowed action recommendations>",
+  "quantitativeReadings": [
+    {
+      "label": "<measurement description e.g. crack width, temperature, tilt angle, rot depth>",
+      "value": <numeric value>,
+      "unit": "<unit string e.g. mm, °C, degrees, meters, %>"
+    }
+  ],
+  "safetyHazard": <boolean, true if severe or critical risk to life/grid safety>,
+  "confidence": <number between 0.0 and 1.0>,
+  "rationale": "<2-3 sentence engineering justification explaining the diagnosis>"
+}
+
+Return ONLY the raw JSON object with no markdown fences, no backticks, and no conversational preamble.`;
+}

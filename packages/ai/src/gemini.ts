@@ -60,11 +60,65 @@ interface FirebaseAIModule {
 const FIREBASE_APP_PKG = 'firebase/app';
 const FIREBASE_AI_PKG = 'firebase/ai';
 
-// ── Firebase app initialisation ────────────────────────────────────────────
+// ── Firebase app & Gemini API initialisation ────────────────────────────────
 
-function getFirebaseApiKey(): string | undefined {
+interface GlobalProcess {
+  env?: Record<string, string | undefined>;
+}
+
+export function getGeminiApiKey(): string | undefined {
+  const g = globalThis as unknown as { process?: GlobalProcess };
+  if (g.process?.env) {
+    if (g.process.env.GEMINI_API_KEY) return g.process.env.GEMINI_API_KEY;
+    if (g.process.env.VITE_FIREBASE_API_KEY) return g.process.env.VITE_FIREBASE_API_KEY;
+  }
   const meta = import.meta as unknown as CustomImportMeta;
   return meta.env?.VITE_FIREBASE_API_KEY;
+}
+
+function getFirebaseApiKey(): string | undefined {
+  return getGeminiApiKey();
+}
+
+/**
+ * Direct REST invocation of Google Generative AI API (Gemini 2.0 Flash).
+ * Works across Node.js (v18+) and browser fetch environments without SDK wrappers.
+ */
+export async function callGeminiRestAPI(
+  prompt: string,
+  apiKey: string,
+  options?: { model?: string; jsonMode?: boolean }
+): Promise<string | null> {
+  const model = options?.model || 'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const payload: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  };
+  if (options?.jsonMode) {
+    payload.generationConfig = { responseMimeType: 'application/json' };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      console.warn(`[MIRROR AI] Gemini REST call returned status ${res.status}: ${res.statusText}`);
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch (err) {
+    console.warn('[MIRROR AI] Gemini direct REST call failed:', err);
+    return null;
+  }
 }
 
 async function getFirebaseApp(): Promise<FirebaseApp | null> {
@@ -93,7 +147,7 @@ async function getFirebaseApp(): Promise<FirebaseApp | null> {
   }
 }
 
-function parseJSONFromText<T>(raw: string): T | null {
+export function parseJSONFromText<T>(raw: string): T | null {
   try {
     const cleaned = raw
       .replace(/^```(?:json)?\s*/i, '')
@@ -109,7 +163,16 @@ export function isFirebaseConfigured(): boolean {
   return !!getFirebaseApiKey();
 }
 
-export async function generateCloudTextRaw(prompt: string): Promise<string | null> {
+export async function generateCloudTextRaw(prompt: string, customApiKey?: string): Promise<string | null> {
+  const apiKey = customApiKey || getGeminiApiKey();
+
+  // Try direct Gemini REST endpoint first when an API key is available
+  if (apiKey) {
+    const restResult = await callGeminiRestAPI(prompt, apiKey, { model: 'gemini-2.0-flash' });
+    if (restResult) return restResult;
+  }
+
+  // Fall back to Firebase AI Logic SDK if configured
   const app = await getFirebaseApp();
   if (!app) return null;
 
@@ -129,7 +192,19 @@ export async function generateCloudTextRaw(prompt: string): Promise<string | nul
   }
 }
 
-async function generateJSON<T>(prompt: string): Promise<T | null> {
+export async function generateCloudJSON<T>(prompt: string, customApiKey?: string): Promise<T | null> {
+  const apiKey = customApiKey || getGeminiApiKey();
+
+  // Try direct Gemini REST endpoint with jsonMode
+  if (apiKey) {
+    const raw = await callGeminiRestAPI(prompt, apiKey, { model: 'gemini-2.0-flash', jsonMode: true });
+    if (raw) {
+      const parsed = parseJSONFromText<T>(raw);
+      if (parsed) return parsed;
+    }
+  }
+
+  // Fall back to Firebase AI Logic SDK
   const app = await getFirebaseApp();
   if (!app) return null;
 
@@ -151,6 +226,10 @@ async function generateJSON<T>(prompt: string): Promise<T | null> {
     console.warn('[MIRROR AI] Cloud inference failed:', err);
     return null;
   }
+}
+
+async function generateJSON<T>(prompt: string): Promise<T | null> {
+  return generateCloudJSON<T>(prompt);
 }
 
 // ── Mock data helpers ──────────────────────────────────────────────────────

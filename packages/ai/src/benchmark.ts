@@ -291,8 +291,8 @@ export async function runBenchmarkSuite(
   const passedCount = evaluations.filter((e) => e.passed).length;
   const compositeScore = Math.round((passedCount / evaluations.length) * 100);
 
-  // Evaluate task-accuracy on ground-truth labeled incident dataset
-  const damageAssessmentReport = evaluateDamageAssessmentSuite();
+  // Evaluate task-accuracy on held-out real infrastructure incident dataset
+  const damageAssessmentReport = await evaluateDamageAssessmentSuite();
 
   return {
     executedAt: new Date().toISOString(),
